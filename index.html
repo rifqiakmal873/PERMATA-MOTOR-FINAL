@@ -417,14 +417,14 @@ const DB = {
   async insert(table, record){
     if(_useCloud){
       try{
-        // Map camelCase → snake_case untuk Supabase
+        // Map camelCase → snake_case untuk Supabase, buang field camelCase agar tidak ditolak Supabase
         const row={...record, created_at:new Date().toISOString()};
-        if(record.hargaBeli!==undefined) row.harga_beli=record.hargaBeli;
-        if(record.hargaJual!==undefined) row.harga_jual=record.hargaJual;
-        if(record.inputOleh!==undefined) row.input_oleh=record.inputOleh;
-        if(record.namaInput!==undefined) row.nama_input=record.namaInput;
-        if(record.roleInput!==undefined) row.role_input=record.roleInput;
-        if(record.waktuInput!==undefined) row.waktu_input=record.waktuInput;
+        if(record.hargaBeli!==undefined){ row.harga_beli=record.hargaBeli; delete row.hargaBeli; }
+        if(record.hargaJual!==undefined){ row.harga_jual=record.hargaJual; delete row.hargaJual; }
+        if(record.inputOleh!==undefined){ row.input_oleh=record.inputOleh; delete row.inputOleh; }
+        if(record.namaInput!==undefined){ row.nama_input=record.namaInput; delete row.namaInput; }
+        if(record.roleInput!==undefined){ row.role_input=record.roleInput; delete row.roleInput; }
+        if(record.waktuInput!==undefined){ row.waktu_input=record.waktuInput; delete row.waktuInput; }
         const {error}=await _supabase.from(table).insert([row]);
         if(error){
           console.error(`[DB] insert ${table} error:`, error.message);
@@ -450,7 +450,15 @@ const DB = {
   async update(table, id, changes){
     if(_useCloud){
       try{
-        const {error}=await _supabase.from(table).update(changes).eq('id',id);
+        // Map camelCase → snake_case untuk Supabase, buang camelCase agar tidak ditolak
+        const row={...changes};
+        if(changes.hargaBeli!==undefined){ row.harga_beli=changes.hargaBeli; delete row.hargaBeli; }
+        if(changes.hargaJual!==undefined){ row.harga_jual=changes.hargaJual; delete row.hargaJual; }
+        if(changes.inputOleh!==undefined){ row.input_oleh=changes.inputOleh; delete row.inputOleh; }
+        if(changes.namaInput!==undefined){ row.nama_input=changes.namaInput; delete row.namaInput; }
+        if(changes.roleInput!==undefined){ row.role_input=changes.roleInput; delete row.roleInput; }
+        if(changes.waktuInput!==undefined){ row.waktu_input=changes.waktuInput; delete row.waktuInput; }
+        const {error}=await _supabase.from(table).update(row).eq('id',id);
         if(error) throw error;
         return true;
       }catch(e){
@@ -1317,7 +1325,7 @@ async function renderInbound(){
     if(!skuId||qty<1){showMsg('in-msg','Pilih SKU dan isi jumlah terlebih dahulu.',false);return}
     const m=getAllSKU().find(s=>s.id===skuId);
     // simpan harga jual ke pm_hargajual agar konsisten
-    if(hjual>0){const hj=LS.obj('pm_hargajual');hj[skuId]=hjual;LS.set('pm_hargajual',hj)}
+    if(hjual>0){const hj=LS.obj('pm_hargajual');hj[skuId]=hjual;LS.set('pm_hargajual',hj);await DB.setKeyVal('hargajual',skuId,hjual)}
     const entry={
       id:Date.now(),sku:skuId,nama:m.nama,harga:m.harga,
       hargaBeli:hbeli||m.harga,hargaJual:hjual||getHargaJual(skuId),
