@@ -1105,6 +1105,7 @@ async function renderDashboard(){
     <div class="stat-card"><div class="stat-strip" style="background:linear-gradient(90deg,var(--gn),#34d399)"></div><div class="stat-ghost" style="opacity:0.06">💰</div><div style="position:relative"><div class="stat-ico" style="background:rgba(16,185,129,0.1)">💰</div><div class="stat-lbl">Omzet Bulan Ini</div><div class="stat-val" style="color:var(--gn);font-size:${omzetBulanIni>9999999?'15px':omzetBulanIni>999999?'19px':'27px'}">${omzetBulanIni>0?fmtRp(omzetBulanIni):'—'}</div><div class="stat-sub">${penjualanBulanIni.length} transaksi bulan ini</div></div></div>
     <div class="stat-card"><div class="stat-strip" style="background:linear-gradient(90deg,var(--bl),#60a5fa)"></div><div class="stat-ghost" style="opacity:0.06">📊</div><div style="position:relative"><div class="stat-ico" style="background:rgba(59,130,246,0.1)">📊</div><div class="stat-lbl">Total Omzet Keseluruhan</div><div class="stat-val" style="color:var(--bl);font-size:${totalOmzet>9999999?'15px':totalOmzet>999999?'19px':'27px'}">${totalOmzet>0?fmtRp(totalOmzet):'—'}</div><div class="stat-sub">${penjualan.length} transaksi tercatat</div></div></div>
     <div class="stat-card"><div class="stat-strip" style="background:linear-gradient(90deg,var(--rd),#ff6b8a)"></div><div class="stat-ghost" style="opacity:0.06">🔔</div><div style="position:relative"><div class="stat-ico" style="background:rgba(230,55,87,0.1)">🔔</div><div class="stat-lbl">Alert Garansi Kritis</div><div class="stat-val" style="color:${merah.length>0?'var(--rd)':'var(--gn)'}">${merah.length}</div><div class="stat-sub">${merah.length===0?'✅ Semua aman':'⚠️ ≤ 3 hari tersisa'}</div></div></div>
+    <div class="stat-card"><div class="stat-strip" style="background:linear-gradient(90deg,var(--pu),#a78bfa)"></div><div class="stat-ghost" style="opacity:0.06">🏬</div><div style="position:relative"><div class="stat-ico" style="background:rgba(139,92,246,0.1)">🏬</div><div class="stat-lbl">Total Unit di Gudang</div><div class="stat-val" style="color:var(--pu);font-size:${Object.values(stok).reduce((a,b)=>a+b,0)>9999?'20px':'27px'}">${Object.values(stok).reduce((a,b)=>a+b,0).toLocaleString('id-ID')}</div><div class="stat-sub">${Object.values(stok).filter(v=>v>0).length} jenis tersedia</div></div></div>
   </div>
 
   <!-- 3 PANEL DETAIL: Garansi, Stok, Top Laris -->
@@ -1122,8 +1123,8 @@ async function renderDashboard(){
     </div>
 
     <div class="card" style="flex:1;min-width:220px;padding:18px 20px">
-      <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">📦 Ringkasan Gudang</div>
-      <div style="font-size:11px;color:var(--txD);margin-bottom:10px">Data berdasarkan transaksi barang masuk dan penjualan yang sudah dicatat.</div>
+      <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">📦 Ringkasan Gudang</div>
+      <div style="font-size:11px;color:var(--txD);margin-bottom:10px">Data real-time berdasarkan barang masuk dikurangi penjualan.</div>
       ${isKosong?`<div style="text-align:center;padding:14px;color:var(--txM);font-size:12px;background:var(--sf);border-radius:8px">Belum ada aktivitas gudang</div>`:`
       ${[
         {label:'Jenis barang pernah masuk',val:[...new Set(inbound.map(x=>x.sku))].length+' jenis',c:'var(--bl)'},
@@ -1152,6 +1153,40 @@ async function renderDashboard(){
     </div>
   </div>
 
+  <!-- TABEL STOK GUDANG LIVE -->
+  ${!isKosong?`
+  <div class="toolbar" style="margin-top:8px">
+    <div>
+      <div class="tb-title">📦 Stok Gudang Saat Ini</div>
+      <div class="tb-sub">Qty real-time = total masuk − total terjual. Diperbarui setiap transaksi.</div>
+    </div>
+    <div class="tb-actions">
+      <input id="dash-stok-search" class="finp" placeholder="🔍 Cari SKU / nama..." style="width:180px;padding:6px 11px;font-size:12px">
+    </div>
+  </div>
+  <div class="twrap" style="margin-bottom:20px"><div class="tscroll">
+    <table id="tbl-stok-gudang"><thead><tr>
+      <th>SKU</th><th>Nama Barang</th><th style="text-align:center">Stok Sekarang</th><th>Status Stok</th><th style="text-align:center">Total Masuk</th><th style="text-align:center">Total Terjual</th>
+    </tr></thead><tbody>
+      ${getAllSKU().filter(s=>inbound.some(x=>x.sku===s.id)).map(s=>{
+        const skuStok=stok[s.id]||0;
+        const totalMasuk=inbound.filter(x=>x.sku===s.id).reduce((a,b)=>a+b.jumlah,0);
+        const totalJual=penjualan.filter(x=>x.sku===s.id).reduce((a,b)=>a+b.jumlah,0);
+        let statusHtml,rowBgColor='transparent';
+        if(skuStok===0){statusHtml=`<span class="sp sp-kritis">HABIS</span>`;rowBgColor='rgba(230,55,87,0.04)';}
+        else if(skuStok<=5){statusHtml=`<span class="sp sp-waspada">MENIPIS</span>`;rowBgColor='rgba(245,158,11,0.04)';}
+        else{statusHtml=`<span class="sp sp-aman">TERSEDIA</span>`;}
+        return`<tr style="background:${rowBgColor}">
+          <td style="font-weight:700;color:var(--prD)">${esc(s.id)}</td>
+          <td>${esc(s.nama)}</td>
+          <td style="text-align:center;font-weight:800;font-size:15px;color:${skuStok===0?'var(--txD)':skuStok<=5?'var(--yw)':'var(--gn)'}">${skuStok}</td>
+          <td>${statusHtml}</td>
+          <td style="text-align:center;color:var(--bl);font-weight:700">${totalMasuk}</td>
+          <td style="text-align:center;color:var(--pr);font-weight:700">${totalJual}</td>
+        </tr>`;}).join('')}
+    </tbody></table>
+  </div></div>`:''}
+
   ${merah.length>0?`<div class="banner ban-rd"><span class="ban-ico">🚨</span><span><b>Peringatan kritis.</b> ${merah.length} item garansi ≤ 3 hari. Segera lakukan penjualan atau retur ke supplier.</span></div>`:''}
 
   <div class="toolbar">
@@ -1172,7 +1207,7 @@ async function renderDashboard(){
       <div style="font-size:12px;color:var(--txM)">Data garansi otomatis muncul setelah ada barang masuk dari menu <b>Barang Masuk</b>.</div>
     </div>`:`
     <table><thead><tr>
-      <th>SKU</th><th>Nama Barang</th><th style="text-align:center">Qty</th>
+      <th>SKU</th><th>Nama Barang</th><th style="text-align:center">Stok Saat Ini</th>
       <th>Tgl Masuk</th><th>Batas Garansi</th><th style="text-align:center">Sisa</th>
       <th>Status</th>${isMgr?'<th>Aksi</th>':''}
     </tr></thead><tbody>
@@ -1180,7 +1215,7 @@ async function renderDashboard(){
         <tr style="background:${rowBg(row.expiry)}">
           <td style="font-weight:700;color:var(--prD)">${esc(row.sku)}</td>
           <td>${esc(row.nama)}</td>
-          <td style="text-align:center">${row.jumlah}</td>
+          <td style="text-align:center;font-weight:800;color:${(stok[row.sku]||0)===0?'var(--txD)':(stok[row.sku]||0)<=5?'var(--yw)':'var(--gn)'}">${stok[row.sku]||0}</td>
           <td>${row.datang}</td>
           <td>${row.expiry}</td>
           <td style="text-align:center">${sisa(row.expiry)}</td>
@@ -1192,6 +1227,13 @@ async function renderDashboard(){
 
   // events — attach AFTER innerHTML set
   g('btn-stop-alarm')?.addEventListener('click',()=>{stopAlarm();renderDashboard()});
+  // Search filter tabel stok gudang
+  g('dash-stok-search')?.addEventListener('input',function(){
+    const q=this.value.toLowerCase();
+    document.querySelectorAll('#tbl-stok-gudang tbody tr').forEach(tr=>{
+      tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';
+    });
+  });
   g('btn-exp-garansi')?.addEventListener('click', async ()=>{
     const garData=await DB.getAll('garansi');
     exportCSV(garData.map(r=>[r.sku,r.nama,r.jumlah,r.datang,r.expiry,diffDays(r.expiry)]),['SKU','Nama','Qty','Tgl Masuk','Batas','Sisa Hari'],'garansi.csv')
