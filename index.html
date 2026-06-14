@@ -949,7 +949,7 @@ function calcSBA(bulan='semua', penjualanData=null){
 /* ============================================================
    APP STATE
    ============================================================ */
-let APP = {user:null,page:'dashboard',abcData:null,abcFilter:'Semua',abcTS:null,sbaData:null,sbaTS:null,showAbcF:true,showRekF:true,outBulan:'semua',abcBulan:'semua',rekBulan:'semua'};
+let APP = {user:null,page:'dashboard',abcData:null,abcFilter:'Semua',abcTS:null,sbaData:null,sbaTS:null,showAbcF:true,showRekF:true,showKumul:true,outBulan:'semua',abcBulan:'semua',rekBulan:'semua'};
 
 /* ============================================================
    ROUTING — show/hide pages WITHOUT re-render
@@ -1274,7 +1274,7 @@ async function renderDashboard(){
     <table><thead><tr>
       <th>SKU</th><th>Nama Barang</th><th style="text-align:center">Stok Saat Ini</th>
       <th>Tgl Masuk</th><th>Batas Garansi</th><th style="text-align:center">Sisa</th>
-      <th>Status</th>${isMgr?'<th>Aksi</th>':''}
+      <th>Status</th>${isMgr?'<th style="min-width:130px">Aksi</th>':''}
     </tr></thead><tbody>
       ${garansi.map(row=>`
         <tr style="background:${rowBg(row.expiry)}">
@@ -1285,7 +1285,7 @@ async function renderDashboard(){
           <td>${row.expiry}</td>
           <td style="text-align:center">${sisa(row.expiry)}</td>
           <td>${pill(row.expiry)}</td>
-          ${isMgr?`<td><button class="btn btn-rd btn-sm" data-id="${row.id}" data-action="del-garansi"><span style="display:inline-flex;align-items:center;gap:5px"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</span></button></td>`:''}
+          ${isMgr?`<td style="white-space:nowrap"><button class="btn btn-yw btn-sm" data-id="${row.id}" data-sku="${row.sku}" data-action="edit-garansi" style="margin-right:5px"><span style="display:inline-flex;align-items:center;gap:4px"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</span></button><button class="btn btn-rd btn-sm" data-id="${row.id}" data-action="del-garansi"><span style="display:inline-flex;align-items:center;gap:4px"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</span></button></td>`:''}
         </tr>`).join('')}
     </tbody></table>`}
   </div></div>`;
@@ -1375,6 +1375,158 @@ async function renderDashboard(){
         await DB.delete('garansi', tid);
         renderDashboard();
       });
+    });
+  });
+
+  // Edit garansi — modal all-in-one
+  g('pg-dashboard').querySelectorAll('[data-action="edit-garansi"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tid=btn.dataset.id;
+      const skuId=btn.dataset.sku;
+      const allGar=await DB.getAll('garansi');
+      const row=allGar.find(x=>String(x.id)===tid);
+      if(!row) return;
+      const stokNow=await DB.getStokAll();
+      const stokAwal=stokNow[skuId]||0;
+
+      openModal(`
+        <div class="mhdr">
+          <div class="mtitle" style="display:flex;align-items:center;gap:8px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--pr)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit Data Garansi
+          </div>
+          <button class="mclose" id="mc">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Info barang -->
+        <div style="background:var(--prBg);border:1px solid var(--prBr);border-radius:10px;padding:11px 14px;margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px">
+          <div><div style="color:var(--txM);margin-bottom:1px">SKU</div><b style="color:var(--prD)">${esc(row.sku)}</b></div>
+          <div><div style="color:var(--txM);margin-bottom:1px">Barang</div><b>${esc(row.nama)}</b></div>
+          <div><div style="color:var(--txM);margin-bottom:1px">Stok Sekarang</div><b style="color:${stokAwal<=5?'var(--yw)':'var(--gn)'}">${stokAwal} unit</b></div>
+          <div><div style="color:var(--txM);margin-bottom:1px">Status Garansi</div>${pill(row.expiry)}</div>
+        </div>
+
+        <div class="g2">
+          <!-- Stok -->
+          <div class="fwrap">
+            <label class="flbl">Ubah Stok Gudang</label>
+            <input id="eg-stok" type="number" class="finp" value="${stokAwal}" min="0">
+            <div class="fhint">Stok saat ini: <b>${stokAwal} unit</b>. Perubahan langsung update gudang.</div>
+          </div>
+
+          <!-- Jumlah unit garansi -->
+          <div class="fwrap">
+            <label class="flbl">Jumlah Unit (Garansi)</label>
+            <input id="eg-qty" type="number" class="finp" value="${row.jumlah||1}" min="1">
+            <div class="fhint">Jumlah unit yang terdaftar dalam batch garansi ini.</div>
+          </div>
+
+          <!-- Tanggal masuk -->
+          <div class="fwrap">
+            <label class="flbl">Tanggal Masuk</label>
+            <input id="eg-datang" type="date" class="finp" value="${row.datang}">
+            <div class="fhint">Batas garansi otomatis dihitung ulang: Tgl Masuk + 30 hari.</div>
+          </div>
+
+          <!-- Batas garansi manual -->
+          <div class="fwrap">
+            <label class="flbl">Batas Garansi (opsional override)</label>
+            <input id="eg-expiry" type="date" class="finp" value="${row.expiry}">
+            <div class="fhint">Kosongkan untuk pakai otomatis dari tanggal masuk + 30 hari.</div>
+          </div>
+
+          <!-- Keterangan -->
+          <div class="fwrap s2">
+            <label class="flbl">Keterangan / Catatan</label>
+            <input id="eg-ket" class="finp" value="${esc(row.keterangan||'')}" placeholder="Contoh: kemasan rusak, warna beda, perlu diperiksa...">
+          </div>
+        </div>
+
+        <!-- Preview perubahan -->
+        <div id="eg-preview" style="margin-bottom:12px"></div>
+
+        <div style="display:flex;gap:9px;margin-top:4px">
+          <button class="btn btn-pr btn-lg" style="flex:1;justify-content:center" id="eg-save">
+            <span style="display:inline-flex;align-items:center;gap:5px">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Simpan Semua Perubahan
+            </span>
+          </button>
+          <button class="btn btn-gh btn-lg" id="mc2">Batal</button>
+        </div>
+      `);
+
+      g('mc').onclick=g('mc2').onclick=closeModal;
+
+      // Live preview perubahan
+      function updatePreview(){
+        const tglMasuk=g('eg-datang').value;
+        const expiryManual=g('eg-expiry').value;
+        const expFinal=expiryManual||addDays(tglMasuk,30);
+        const stokBaru=+(g('eg-stok').value||0);
+        const diffStok=stokBaru-stokAwal;
+        const sisaHari=diffDays(expFinal);
+        g('eg-preview').innerHTML=`
+          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;font-size:12px">
+            <div style="font-weight:700;color:var(--txM);font-size:10px;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Preview Perubahan</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <div style="padding:7px 12px;background:#fff;border-radius:8px;border:1px solid var(--bd)">
+                <div style="color:var(--txM);margin-bottom:2px">Batas Garansi Baru</div>
+                <div style="font-weight:700;color:var(--tx)">${expFinal}</div>
+              </div>
+              <div style="padding:7px 12px;background:#fff;border-radius:8px;border:1px solid var(--bd)">
+                <div style="color:var(--txM);margin-bottom:2px">Sisa Garansi</div>
+                <div style="font-weight:700;color:${sisaHari<0?'var(--pu)':sisaHari<=3?'var(--rd)':sisaHari<=10?'var(--yw)':'var(--gn)'}">${sisaHari<0?Math.abs(sisaHari)+' hari lalu':sisaHari+' hari'}</div>
+              </div>
+              <div style="padding:7px 12px;background:${diffStok>0?'var(--gnB)':diffStok<0?'var(--rdB)':'#fff'};border-radius:8px;border:1px solid ${diffStok>0?'var(--gnBr)':diffStok<0?'var(--rdBr)':'var(--bd)'}">
+                <div style="color:var(--txM);margin-bottom:2px">Stok Baru</div>
+                <div style="font-weight:700;color:${diffStok>0?'var(--gn)':diffStok<0?'var(--rd)':'var(--tx)'}">
+                  ${stokBaru} unit ${diffStok!==0?`(${diffStok>0?'+':''}${diffStok})`:''}
+                </div>
+              </div>
+            </div>
+          </div>`;
+        // Auto-sync expiry field jika tanggal masuk berubah dan expiry tidak diisi manual
+        if(!expiryManual && tglMasuk) g('eg-expiry').value='';
+      }
+
+      g('eg-datang').addEventListener('input',()=>{
+        // Reset expiry manual saat tgl masuk berubah agar pakai otomatis
+        g('eg-expiry').value='';
+        updatePreview();
+      });
+      g('eg-stok').addEventListener('input', updatePreview);
+      g('eg-expiry').addEventListener('input', updatePreview);
+      updatePreview();
+
+      g('eg-save').onclick=async ()=>{
+        const tglMasuk=g('eg-datang').value;
+        const expiryManual=g('eg-expiry').value;
+        const expFinal=expiryManual||addDays(tglMasuk,30);
+        const stokBaru=+(g('eg-stok').value||0);
+        const qty=+(g('eg-qty').value||1);
+        const ket=g('eg-ket').value;
+
+        // Update garansi record
+        const changes={datang:tglMasuk,expiry:expFinal,jumlah:qty,keterangan:ket};
+        await DB.update('garansi', tid, changes);
+
+        // Update inbound record juga biar konsisten
+        await DB.update('inbound', tid, changes);
+
+        // Update stok jika berubah
+        if(stokBaru!==stokAwal){
+          await DB.setKeyVal('stok', skuId, stokBaru);
+          logActivity('EDIT_GARANSI',`Edit garansi ${esc(row.sku)}: stok ${stokAwal}→${stokBaru}, expiry→${expFinal}`);
+        } else {
+          logActivity('EDIT_GARANSI',`Edit garansi ${esc(row.sku)}: expiry→${expFinal}`);
+        }
+
+        closeModal();
+        renderDashboard();
+      };
     });
   });
 }
@@ -1867,6 +2019,77 @@ async function renderABC(){
     </div>
   </div>
 
+  <!-- PENJELASAN KUMULATIF -->
+  ${(()=>{
+    const totalAcv=data.reduce((s,r)=>s+r.acv,0);
+    const jmlA=data.filter(r=>r.kelas==='A').length;
+    const jmlB=data.filter(r=>r.kelas==='B').length;
+    const jmlC=data.filter(r=>r.kelas==='C').length;
+    const nilaiA=data.filter(r=>r.kelas==='A').reduce((s,r)=>s+r.acv,0);
+    const nilaiB=data.filter(r=>r.kelas==='B').reduce((s,r)=>s+r.acv,0);
+    const nilaiC=data.filter(r=>r.kelas==='C').reduce((s,r)=>s+r.acv,0);
+    const pA=totalAcv>0?nilaiA/totalAcv*100:0;
+    const pB=totalAcv>0?nilaiB/totalAcv*100:0;
+    const pC=totalAcv>0?nilaiC/totalAcv*100:0;
+    const showK=APP.showKumul!==false;
+    return `<div class="card" style="padding:20px 24px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${showK?'14px':'0'};flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif">Apa itu % Kumulatif?</div>
+          <div style="font-size:11px;color:var(--txM);margin-top:2px">Visualisasi langsung dari data ${data.length} SKU kamu</div>
+        </div>
+        <button id="btn-toggle-kumul" class="btn btn-gh btn-sm" style="font-size:11px">${showK?'Sembunyikan':'Tampilkan'}</button>
+      </div>
+      ${showK?`
+      <div style="background:var(--prBg);border:1px solid var(--prBr);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12px;line-height:1.8;color:var(--tx)">
+        Bayangkan nilai penjualan semua ${data.length} SKU dijumlahkan, totalnya <b style="color:var(--prD)">${fmtRp(totalAcv)}</b>.<br>
+        % Kumulatif menjawab: <i>"Kalau barang diurutkan dari yang paling bernilai, sudah berapa persen total uang yang terkumpul sampai baris ini?"</i><br>
+        Baris pertama mulai kecil, terus naik setiap baris, sampai baris terakhir tepat 100%.
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Distribusi nilai dari ${data.length} SKU kamu</div>
+        <div style="height:28px;border-radius:8px;overflow:hidden;display:flex;margin-bottom:10px;border:1px solid var(--bd)">
+          <div style="width:${pA.toFixed(1)}%;background:var(--rd);display:flex;align-items:center;justify-content:center" title="Kelas A — ${pA.toFixed(1)}%">
+            ${pA>6?`<span style="font-size:10px;font-weight:800;color:#fff">${pA.toFixed(0)}%</span>`:''}
+          </div>
+          <div style="width:${pB.toFixed(1)}%;background:var(--yw);display:flex;align-items:center;justify-content:center" title="Kelas B — ${pB.toFixed(1)}%">
+            ${pB>6?`<span style="font-size:10px;font-weight:800;color:#fff">${pB.toFixed(0)}%</span>`:''}
+          </div>
+          <div style="width:${pC.toFixed(1)}%;background:var(--gn);display:flex;align-items:center;justify-content:center" title="Kelas C — ${pC.toFixed(1)}%">
+            ${pC>6?`<span style="font-size:10px;font-weight:800;color:#fff">${pC.toFixed(0)}%</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${[
+            {kelas:'A',jml:jmlA,nilai:nilaiA,pct:pA,cl:'var(--rd)',bg:'var(--rdB)',br:'var(--rdBr)',msg:'Sedikit barang, nilai besar. Pantau stok setiap hari.'},
+            {kelas:'B',jml:jmlB,nilai:nilaiB,pct:pB,cl:'var(--yw)',bg:'var(--ywB)',br:'var(--ywBr)',msg:'Menengah. Pantau mingguan, jangan sampai kosong lama.'},
+            {kelas:'C',jml:jmlC,nilai:nilaiC,pct:pC,cl:'var(--gn)',bg:'var(--gnB)',br:'var(--gnBr)',msg:'Banyak barang tapi nilai kecil. Cukup pantau bulanan.'},
+          ].map(x=>`<div style="flex:1;min-width:160px;padding:10px 14px;background:${x.bg};border:1px solid ${x.br};border-radius:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:11px;font-weight:800;color:${x.cl}">KELAS ${x.kelas} · ${x.jml} SKU</span>
+              <span style="font-size:13px;font-weight:800;color:${x.cl}">${x.pct.toFixed(1)}% nilai</span>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--tx);margin-bottom:3px">${fmtRp(x.nilai)}</div>
+            <div style="font-size:10px;color:var(--txM);line-height:1.5">${x.msg}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Cara baca kolom % Kumulatif di tabel bawah</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px">
+          ${[
+            {n:1,c:'var(--rd)',t:'Baris 1 = % kontribusi barang paling bernilai sendirian terhadap total gudang.'},
+            {n:2,c:'var(--yw)',t:'Tiap baris berikutnya angkanya terus naik karena nilainya dijumlah. Di bawah 79.7% → Kelas A.'},
+            {n:3,c:'var(--gn)',t:'Baris terakhir pasti 100%. Semua SKU sudah masuk hitungan.'},
+          ].map(x=>`<div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:190px">
+            <div style="width:20px;height:20px;border-radius:50%;background:${x.c};color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${x.n}</div>
+            <div style="color:var(--txM);line-height:1.6">${x.t}</div>
+          </div>`).join('')}
+        </div>
+      </div>`:''}
+    </div>`;
+  })()}
+
   <div class="fp-wrap">
     <button class="fp ${fil==='Semua'?'on-all':''}" data-fil="Semua"><div class="fp-lbl" style="color:${fil==='Semua'?'var(--prD)':'var(--tx)'}">Semua (${data.length})</div></button>
     <button class="fp ${fil==='A'?'on-A':''}" data-fil="A"><div class="fp-lbl" style="color:${fil==='A'?'var(--rd)':'var(--tx)'}">Kelas A (${A})</div><div class="fp-sub">High Value · Kontrol Ketat</div></button>
@@ -1905,6 +2128,7 @@ async function renderABC(){
 
   // events — MUST attach after innerHTML
   g('btn-toggle-abcf').addEventListener('click',()=>{APP.showAbcF=!APP.showAbcF;renderABC()});
+  g('btn-toggle-kumul')?.addEventListener('click',()=>{APP.showKumul=!APP.showKumul;renderABC()});
   g('sel-bulan-abc')?.addEventListener('change',()=>{APP.abcBulan=g('sel-bulan-abc').value;APP.abcData=calcABC(APP.abcBulan, APP._lastPenjualan||null);APP.abcTS=new Date().toLocaleString('id-ID');renderABC()});
   g('btn-hitung-abc').addEventListener('click',()=>{
     APP.abcData=calcABC(APP.abcBulan||'semua', penjualan);
