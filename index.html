@@ -2041,50 +2041,73 @@ async function renderABC(){
         <button id="btn-toggle-kumul" class="btn btn-gh btn-sm" style="font-size:11px">${showK?'Sembunyikan':'Tampilkan'}</button>
       </div>
       ${showK?`
-      <div style="background:var(--prBg);border:1px solid var(--prBr);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12px;line-height:1.8;color:var(--tx)">
-        Bayangkan nilai penjualan semua ${data.length} SKU dijumlahkan, totalnya <b style="color:var(--prD)">${fmtRp(totalAcv)}</b>.<br>
-        % Kumulatif menjawab: <i>"Kalau barang diurutkan dari yang paling bernilai, sudah berapa persen total uang yang terkumpul sampai baris ini?"</i><br>
-        Baris pertama mulai kecil, terus naik setiap baris, sampai baris terakhir tepat 100%.
+      <!-- Analogi mudah -->
+      <div style="background:var(--prBg);border:1px solid var(--prBr);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:800;color:var(--prD);margin-bottom:6px">Analoginya begini:</div>
+        <div style="font-size:12px;color:var(--tx);line-height:1.8">
+          Kamu punya ${data.length} barang. Total nilai semua barang = <b style="color:var(--prD)">${fmtRp(totalAcv)}</b>.<br>
+          Sistem lalu <b>mengurutkan barang dari yang paling mahal/laris ke yang paling murah/jarang</b>.<br>
+          Setelah diurutkan, % Kumulatif ngitung: <i>"Kalau dijumlah dari atas sampai baris ini, sudah berapa persen dari ${fmtRp(totalAcv)} yang terkumpul?"</i>
+        </div>
+        <div style="margin-top:10px;padding:10px 14px;background:#fff;border-radius:8px;border:1px solid var(--prBr);font-size:12px;color:var(--txM);line-height:1.7">
+          Contoh: Baris 1 punya ACV Rp 10 jt dari total Rp 88 jt → % Kumulatif = 11.4%.<br>
+          Baris 2 ditambah, ACV-nya Rp 7.5 jt → sekarang sudah 11.4% + 8.5% = <b style="color:var(--prD)">19.9%</b>.<br>
+          Terus dijumlah sampai baris ke-${data.length} yang pasti tepat <b style="color:var(--prD)">100%</b>.
+        </div>
       </div>
+
+      <!-- Progress bar visual live dari data -->
       <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Distribusi nilai dari ${data.length} SKU kamu</div>
-        <div style="height:28px;border-radius:8px;overflow:hidden;display:flex;margin-bottom:10px;border:1px solid var(--bd)">
-          <div style="width:${pA.toFixed(1)}%;background:var(--rd);display:flex;align-items:center;justify-content:center" title="Kelas A — ${pA.toFixed(1)}%">
-            ${pA>6?`<span style="font-size:10px;font-weight:800;color:#fff">${pA.toFixed(0)}%</span>`:''}
+        <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Distribusi nyata dari ${data.length} SKU kamu</div>
+        <!-- Bar utama -->
+        <div style="height:32px;border-radius:8px;overflow:hidden;display:flex;margin-bottom:6px;border:1px solid var(--bd)">
+          <div style="width:${pA.toFixed(1)}%;background:var(--rd);display:flex;align-items:center;justify-content:center" title="Kelas A">
+            ${pA>5?`<span style="font-size:10px;font-weight:800;color:#fff">${pA.toFixed(0)}%</span>`:''}
           </div>
-          <div style="width:${pB.toFixed(1)}%;background:var(--yw);display:flex;align-items:center;justify-content:center" title="Kelas B — ${pB.toFixed(1)}%">
-            ${pB>6?`<span style="font-size:10px;font-weight:800;color:#fff">${pB.toFixed(0)}%</span>`:''}
+          <div style="width:${pB.toFixed(1)}%;background:var(--yw);display:flex;align-items:center;justify-content:center" title="Kelas B">
+            ${pB>5?`<span style="font-size:10px;font-weight:800;color:#fff">${pB.toFixed(0)}%</span>`:''}
           </div>
-          <div style="width:${pC.toFixed(1)}%;background:var(--gn);display:flex;align-items:center;justify-content:center" title="Kelas C — ${pC.toFixed(1)}%">
-            ${pC>6?`<span style="font-size:10px;font-weight:800;color:#fff">${pC.toFixed(0)}%</span>`:''}
+          <div style="width:${pC.toFixed(1)}%;background:var(--gn);display:flex;align-items:center;justify-content:center" title="Kelas C">
+            ${pC>5?`<span style="font-size:10px;font-weight:800;color:#fff">${pC.toFixed(0)}%</span>`:''}
           </div>
         </div>
+        <!-- Label skala -->
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txD);margin-bottom:12px;padding:0 2px">
+          <span>0%</span><span style="color:var(--rd);font-weight:700">79.7% → Kelas A habis</span><span style="color:var(--yw);font-weight:700">93.9% → Kelas B habis</span><span>100%</span>
+        </div>
+        <!-- 3 kartu kelas -->
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           ${[
-            {kelas:'A',jml:jmlA,nilai:nilaiA,pct:pA,cl:'var(--rd)',bg:'var(--rdB)',br:'var(--rdBr)',msg:'Sedikit barang, nilai besar. Pantau stok setiap hari.'},
-            {kelas:'B',jml:jmlB,nilai:nilaiB,pct:pB,cl:'var(--yw)',bg:'var(--ywB)',br:'var(--ywBr)',msg:'Menengah. Pantau mingguan, jangan sampai kosong lama.'},
-            {kelas:'C',jml:jmlC,nilai:nilaiC,pct:pC,cl:'var(--gn)',bg:'var(--gnB)',br:'var(--gnBr)',msg:'Banyak barang tapi nilai kecil. Cukup pantau bulanan.'},
-          ].map(x=>`<div style="flex:1;min-width:160px;padding:10px 14px;background:${x.bg};border:1px solid ${x.br};border-radius:10px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:11px;font-weight:800;color:${x.cl}">KELAS ${x.kelas} · ${x.jml} SKU</span>
-              <span style="font-size:13px;font-weight:800;color:${x.cl}">${x.pct.toFixed(1)}% nilai</span>
+            {kelas:'A',jml:jmlA,nilai:nilaiA,pct:pA,cl:'var(--rd)',bg:'var(--rdB)',br:'var(--rdBr)',aksi:'Cek stok tiap hari. Jangan sampai kosong.'},
+            {kelas:'B',jml:jmlB,nilai:nilaiB,pct:pB,cl:'var(--yw)',bg:'var(--ywB)',br:'var(--ywBr)',aksi:'Cek stok tiap minggu. Pesan sebelum habis.'},
+            {kelas:'C',jml:jmlC,nilai:nilaiC,pct:pC,cl:'var(--gn)',bg:'var(--gnB)',br:'var(--gnBr)',aksi:'Cek stok tiap bulan. Pesan kalau sudah kosong.'},
+          ].map(x=>`<div style="flex:1;min-width:160px;padding:12px 14px;background:${x.bg};border:1px solid ${x.br};border-radius:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:800;color:${x.cl}">Kelas ${x.kelas}</span>
+              <span style="font-size:13px;font-weight:800;color:${x.cl}">${x.pct.toFixed(1)}%</span>
             </div>
-            <div style="font-size:11px;font-weight:700;color:var(--tx);margin-bottom:3px">${fmtRp(x.nilai)}</div>
-            <div style="font-size:10px;color:var(--txM);line-height:1.5">${x.msg}</div>
+            <div style="font-size:11px;color:var(--txM);margin-bottom:2px">${x.jml} SKU · ${fmtRp(x.nilai)}</div>
+            <div style="font-size:10px;color:var(--tx);font-weight:600;margin-top:5px;padding-top:5px;border-top:1px solid ${x.br}">${x.aksi}</div>
           </div>`).join('')}
         </div>
       </div>
+
+      <!-- Cara baca tabel -->
       <div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 16px">
-        <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Cara baca kolom % Kumulatif di tabel bawah</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px">
-          ${[
-            {n:1,c:'var(--rd)',t:'Baris 1 = % kontribusi barang paling bernilai sendirian terhadap total gudang.'},
-            {n:2,c:'var(--yw)',t:'Tiap baris berikutnya angkanya terus naik karena nilainya dijumlah. Di bawah 79.7% → Kelas A.'},
-            {n:3,c:'var(--gn)',t:'Baris terakhir pasti 100%. Semua SKU sudah masuk hitungan.'},
-          ].map(x=>`<div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:190px">
-            <div style="width:20px;height:20px;border-radius:50%;background:${x.c};color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${x.n}</div>
-            <div style="color:var(--txM);line-height:1.6">${x.t}</div>
-          </div>`).join('')}
+        <div style="font-size:11px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Cara baca kolom % Kumulatif di tabel</div>
+        <div style="display:flex;gap:8px;flex-direction:column;font-size:12px">
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:#fff;border-radius:8px;border-left:3px solid var(--rd)">
+            <span style="font-weight:800;color:var(--rd);flex-shrink:0">Angka kecil (misal 11%)</span>
+            <span style="color:var(--txM)">Artinya barang itu <b>sendirian</b> sudah mewakili 11% dari total nilai gudang. Barang mahal dan/atau sering terjual.</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:#fff;border-radius:8px;border-left:3px solid var(--yw)">
+            <span style="font-weight:800;color:var(--yw);flex-shrink:0">Angka naik terus</span>
+            <span style="color:var(--txM)">Normal. Tiap baris selalu lebih besar dari baris sebelumnya karena nilainya dijumlah terus.</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:#fff;border-radius:8px;border-left:3px solid var(--gn)">
+            <span style="font-weight:800;color:var(--gn);flex-shrink:0">Batas kelas</span>
+            <span style="color:var(--txM)">Saat % Kumulatif melewati 79.7%, barang berikutnya masuk Kelas B. Lewat 93.9%, masuk Kelas C.</span>
+          </div>
         </div>
       </div>`:''}
     </div>`;
